@@ -2,25 +2,62 @@ import axios from 'axios'
 
 /**
  * Resolves the appropriate backend API base URL:
- * 1. Explicit environment variable: VITE_API_BASE_URL (if set)
- * 2. Local development: http://localhost:8000/api/v1 (when on localhost or 127.0.0.1)
- * 3. Production deployment (Vercel / live domain): https://smart-land-analysis.onrender.com/api/v1
+ * 1. Environment variables: VITE_API_URL, VITE_API_BASE_URL, or NEXT_PUBLIC_API_URL
+ * 2. Hostname check: If running in browser on non-localhost (e.g. smart-land-analysis.vercel.app),
+ *    ensure we target https://smart-land-analysis.onrender.com/api/v1 (unless explicit remote env var is set).
+ * 3. Local development: http://localhost:8000/api/v1 (when on localhost or 127.0.0.1)
  */
 const getApiBaseUrl = () => {
-  const envUrl = import.meta.env.VITE_API_BASE_URL
-  if (envUrl && typeof envUrl === 'string' && envUrl.trim() !== '') {
-    return envUrl.trim().replace(/\/+$/, '')
+  const rawEnv =
+    import.meta.env.VITE_API_URL ||
+    import.meta.env.VITE_API_BASE_URL ||
+    import.meta.env.NEXT_PUBLIC_API_URL
+
+  const formatUrl = (url) => {
+    let cleaned = url.trim().replace(/\/+$/, '')
+    if (!cleaned.endsWith('/api/v1')) {
+      cleaned = `${cleaned}/api/v1`
+    }
+    return cleaned
   }
 
-  // Check if running in browser on localhost
+  // Check if running in browser
   if (typeof window !== 'undefined' && window.location) {
     const host = window.location.hostname
-    if (host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0') {
+    const isLocalhost = host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0'
+
+    if (!isLocalhost) {
+      // Production deployment (e.g. Vercel)
+      if (
+        rawEnv &&
+        typeof rawEnv === 'string' &&
+        rawEnv.trim() !== '' &&
+        !rawEnv.includes('localhost') &&
+        !rawEnv.includes('127.0.0.1')
+      ) {
+        return formatUrl(rawEnv)
+      }
+      return 'https://smart-land-analysis.onrender.com/api/v1'
+    } else {
+      // Local development environment
+      if (rawEnv && typeof rawEnv === 'string' && rawEnv.trim() !== '') {
+        return formatUrl(rawEnv)
+      }
       return `http://${host}:8000/api/v1`
     }
   }
 
-  // Production default for Vercel and deployed environments
+  // Fallback for non-browser / build time
+  if (
+    rawEnv &&
+    typeof rawEnv === 'string' &&
+    rawEnv.trim() !== '' &&
+    !rawEnv.includes('localhost') &&
+    !rawEnv.includes('127.0.0.1')
+  ) {
+    return formatUrl(rawEnv)
+  }
+
   return 'https://smart-land-analysis.onrender.com/api/v1'
 }
 
