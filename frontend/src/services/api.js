@@ -66,7 +66,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 30000,
+  timeout: 60000,
 })
 
 // ---- Request interceptor: attach JWT access token if present ----
@@ -123,6 +123,14 @@ function extractErrorMessage(error) {
   }
 
   if (typeof detail === 'string') return detail
+
+  if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+    return 'Connection timed out. The backend server on Render may be waking up from cold start. Please wait 10 seconds and try again.'
+  }
+
+  if (error.message === 'Network Error' || error.code === 'ERR_NETWORK') {
+    return 'Network Error: Unable to connect to backend server. Please verify backend is active on https://smart-land-analysis.onrender.com'
+  }
 
   return error.response?.data?.message || error.message || 'Something went wrong. Please try again.'
 }
