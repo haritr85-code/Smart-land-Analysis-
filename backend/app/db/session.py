@@ -35,8 +35,8 @@ def _build_engine() -> AsyncEngine:
         "prepared_statement_cache_size": 0,
     }
 
-    # Automatically configure SSL context for remote PostgreSQL (Supabase / Render)
-    if is_remote or "supabase.com" in db_url or "render.com" in db_url or settings.APP_ENV != "development":
+    # Only attach explicit SSL context if required by connection string or Supabase pooler
+    if "sslmode=require" in settings.DATABASE_URL_RAW.lower() or "ssl=true" in settings.DATABASE_URL_RAW.lower() or "supabase.com" in db_url or "pooler.supabase.com" in db_url:
         ssl_ctx = ssl.create_default_context()
         ssl_ctx.check_hostname = False
         ssl_ctx.verify_mode = ssl.CERT_NONE

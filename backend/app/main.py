@@ -8,8 +8,9 @@ Configures CORS, lifespan, documentation endpoints, and includes all routers.
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.core.config import settings
 
@@ -113,6 +114,15 @@ def create_application() -> FastAPI:
         allow_headers=["*"],
         expose_headers=["Content-Disposition", "content-disposition"],
     )
+
+    # ---------------- Global Exception Handler ----------------
+    @app.exception_handler(Exception)
+    async def global_exception_handler(request: Request, exc: Exception):
+        logger.error("Unhandled error processing %s %s: %s", request.method, request.url, exc, exc_info=True)
+        return JSONResponse(
+            status_code=500,
+            content={"detail": f"Internal Server Error: {str(exc)}"},
+        )
 
     # ---------------- Routers ----------------
     from app.routers import (

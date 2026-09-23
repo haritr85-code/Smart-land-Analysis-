@@ -61,8 +61,13 @@ const getApiBaseUrl = () => {
   return 'https://smart-land-analysis.onrender.com/api/v1'
 }
 
+const API_BASE_URL = getApiBaseUrl()
+if (typeof window !== 'undefined') {
+  console.log('[BuildWise AI] API BASE URL:', API_BASE_URL)
+}
+
 const api = axios.create({
-  baseURL: getApiBaseUrl(),
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
