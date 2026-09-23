@@ -8,6 +8,8 @@ REST API endpoints for Authentication.
     GET  /api/v1/auth/me
 """
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,6 +20,8 @@ from app.models.user import User
 from app.schemas.auth import LoginRequest, RegisterRequest, TokenResponse, UserResponse
 from app.services import auth_service
 from app.services.auth_service import EmailAlreadyRegisteredError, InvalidCredentialsError
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -36,6 +40,12 @@ async def register(payload: RegisterRequest, db: AsyncSession = Depends(get_db))
             status_code=status.HTTP_409_CONFLICT,
             detail="An account with this email already exists.",
         )
+    except Exception as exc:
+        logger.error("Database error during user registration for %s: %s", payload.email, exc, exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error: {str(exc)}",
+        )
     return UserResponse.model_validate(user)
 
 
@@ -52,6 +62,12 @@ async def login(payload: LoginRequest, db: AsyncSession = Depends(get_db)) -> To
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password.",
+        )
+    except Exception as exc:
+        logger.error("Database error during user login for %s: %s", payload.email, exc, exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error: {str(exc)}",
         )
 
     access_token = create_access_token(subject=str(user.id))
