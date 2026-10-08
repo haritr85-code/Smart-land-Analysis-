@@ -55,11 +55,18 @@ class Settings(BaseSettings):
         """
         Normalized asyncpg database connection string.
         - Automatically converts postgres:// and postgresql:// to postgresql+asyncpg://
+        - Strips accidental 'DATABASE_URL=' prefix or quotes if pasted into env value.
         - Strips query parameters unsupported by asyncpg (like ?sslmode=require).
         """
         raw = (self.DATABASE_URL_RAW or "").strip()
         if not raw:
             return ""
+
+        # Defensively strip 'DATABASE_URL=' if accidentally pasted into env value field
+        if raw.startswith("DATABASE_URL="):
+            raw = raw[len("DATABASE_URL="):].strip()
+
+        raw = raw.strip("\"'")
 
         if raw.startswith("postgres://"):
             raw = "postgresql+asyncpg://" + raw[len("postgres://"):]
@@ -93,6 +100,13 @@ class Settings(BaseSettings):
 
         if not raw:
             return ""
+
+        if raw.startswith("DATABASE_URL_SYNC="):
+            raw = raw[len("DATABASE_URL_SYNC="):].strip()
+        elif raw.startswith("DATABASE_URL="):
+            raw = raw[len("DATABASE_URL="):].strip()
+
+        raw = raw.strip("\"'")
 
         if raw.startswith("postgres://"):
             raw = "postgresql+psycopg2://" + raw[len("postgres://"):]

@@ -170,6 +170,30 @@ def create_application() -> FastAPI:
             "message": "Smart Land Analysis API is running",
         }
 
+    @app.get("/health/db", tags=["Health"])
+    @app.get(f"{settings.API_V1_PREFIX}/health/db", tags=["Health"])
+    async def db_health_check():
+        """Database health check endpoint - verifies DB connectivity."""
+        try:
+            from app.db.session import engine
+            from sqlalchemy import text
+            async with engine.connect() as conn:
+                await conn.execute(text("SELECT 1"))
+            return {
+                "status": "ok",
+                "database": "connected",
+                "message": "Database connection verified successfully",
+            }
+        except Exception as exc:
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "status": "error",
+                    "database": "disconnected",
+                    "detail": str(exc),
+                },
+            )
+
     return app
 
 
