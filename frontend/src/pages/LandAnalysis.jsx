@@ -216,7 +216,18 @@ export default function LandAnalysis() {
       setStep('result')
     } catch (err) {
       console.error("Analysis execution error:", err);
-      setError(err.message || 'Analysis failed. Please ensure you are logged in and backend is connected.')
+      const status = err.response?.status;
+      let userMsg = err.message || 'Analysis failed. Please try again.';
+      if (status === 401) {
+        userMsg = 'Your session has expired. Please log out and sign in again to continue.';
+      } else if (status === 422) {
+        userMsg = `Invalid land record data (${err.message}). Please check coordinates and input values.`;
+      } else if (status === 500) {
+        userMsg = `Backend processing error (${err.message}). Please verify database configuration or try again.`;
+      } else if (status === 502 || status === 503) {
+        userMsg = 'Backend server is waking up or temporarily busy. Please wait a few seconds and click Confirm & Run AI Analysis again.';
+      }
+      setError(userMsg)
     } finally {
       setSubmitting(false)
     }

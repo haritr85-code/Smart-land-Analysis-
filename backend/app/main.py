@@ -56,9 +56,11 @@ async def lifespan(app: FastAPI):
             await conn.execute(text("SELECT 1"))
         logger.info("Database connection verified successfully.")
 
+        from app.db.init_db import ensure_schema_up_to_date
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-        logger.info("Database schema verified / initialized.")
+            await ensure_schema_up_to_date(conn)
+        logger.info("Database schema verified / initialized with required columns.")
     except Exception as exc:
         logger.warning(
             "Database connection/initialization warning at startup: %s. "
