@@ -32,6 +32,20 @@ async def lifespan(app: FastAPI):
     """
     logger.info("Starting %s [%s environment]", settings.APP_NAME, settings.APP_ENV)
 
+    # Check if DATABASE_URL or DATABASE_URL_SYNC contained accidental variable name prefixes
+    raw_db = (settings.DATABASE_URL_RAW or "").strip()
+    raw_db_sync = (settings.DATABASE_URL_SYNC_RAW or "").strip()
+    if raw_db.startswith("DATABASE_URL="):
+        logger.warning(
+            "WARNING: DATABASE_URL environment variable contained prefix 'DATABASE_URL='. "
+            "Defensively stripped prefix to prevent database connection failure."
+        )
+    if raw_db_sync.startswith("DATABASE_URL_SYNC=") or raw_db_sync.startswith("DATABASE_URL="):
+        logger.warning(
+            "WARNING: DATABASE_URL_SYNC environment variable contained variable name prefix. "
+            "Defensively stripped prefix to prevent Alembic/sync connection failure."
+        )
+
     # Verify database connectivity and initialize tables if needed
     try:
         from app.db.session import engine
