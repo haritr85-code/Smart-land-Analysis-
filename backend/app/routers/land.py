@@ -15,6 +15,7 @@ This file only: parses/validates HTTP input (via Pydantic + FastAPI),
 calls the service layer, and maps results/errors to HTTP responses.
 """
 
+import logging
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -28,6 +29,7 @@ from app.schemas.land import LandCreate, LandListResponse, LandResponse, LandUpd
 from app.services import land_service
 from app.services.exceptions import NotFoundError
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/lands", tags=["Land Management"])
 
 
@@ -43,8 +45,15 @@ async def create_land(
     current_user: User = Depends(get_current_user),
 ) -> LandResponse:
     """Creates a new land/plot entry, owned by the logged-in user."""
-    land = await land_service.create_land(db, payload, user_id=current_user.id)
-    return LandResponse.model_validate(land)
+    try:
+        land = await land_service.create_land(db, payload, user_id=current_user.id)
+        return LandResponse.model_validate(land)
+    except Exception as exc:
+        logger.error("Error creating land record: %s", exc, exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Land creation failed: {type(exc).__name__} - {str(exc)}"
+        ) from exc
 
 
 @router.get(
