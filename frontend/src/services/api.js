@@ -83,10 +83,45 @@ api.interceptors.request.use((config) => {
   return config
 })
 
-// ---- Response interceptor: normalize errors, handle 401 ----
+// ---- Response interceptor: normalize errors, handle 401, auto-retry cold starts ----
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
+    const config = error.config
+
+    // Check if error is a network/timeout candidate for cold start retry
+    const isNetworkOrTimeout =
+      error.code === 'ECONNABORTED' ||
+      error.code === 'ERR_NETWORK' ||
+      !error.response ||
+      error.message === 'Network Error' ||
+      error.message?.includes('timeout')
+
+    // Retry up to 3 times for network/timeout errors during Render free-tier cold starts
+    if (config && isNetworkOrTimeout) {
+      config.__retryCount = config.__retryCount || 0
+      const maxRetries = 3
+
+      if (config.__retryCount < maxRetries) {
+        config.__retryCount += 1
+        console.warn(
+          `[BuildWise AI] Backend network/timeout delay detected (Cold Start). Retrying attempt ${config.__retryCount}/${maxRetries}...`
+        )
+
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('backend-waking-up', {
+              detail: { attempt: config.__retryCount, maxRetries },
+            })
+          )
+        }
+
+        // Wait 3 seconds before retrying
+        await new Promise((resolve) => setTimeout(resolve, 3000))
+        return api(config)
+      }
+    }
+
     if (error.response?.status === 401) {
       // Token expired / invalid — clear it so the UI can react
       localStorage.removeItem('access_token')
